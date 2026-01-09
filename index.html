@@ -3,6 +3,399 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎰 幸运抽奖 (清晰滚动版)</title>
+    
+    <!-- 核心库：包含 XLSX 解析和 撒花特效 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" onerror="window.xlsxLoadError=true"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <style>
+        :root {
+            --primary: #00f2ea;
+            --secondary: #ff0050;
+            --bg-dark: #1e1e2e;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: radial-gradient(circle at center, #2b2b40 0%, #101015 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        /* 遮罩层：抽奖时背景变暗 */
+        .overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 10;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s;
+        }
+        body.drawing .overlay { opacity: 1; }
+
+        .container {
+            position: relative;
+            z-index: 20;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 2.5rem;
+            border-radius: 20px;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 90%;
+            max-width: 850px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            margin: 0 0 20px 0;
+            font-size: 2.5rem;
+            letter-spacing: 2px;
+            /* 渐变文字 */
+            background: linear-gradient(90deg, #00f2ea, #ff0050);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        /* 顶部工具栏 */
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0,0,0,0.3);
+            padding: 8px 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            font-size: 14px;
+            color: #bbb;
+        }
+
+        .btn-clear {
+            background: transparent;
+            border: 1px solid #666;
+            color: #999;
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: 0.2s;
+        }
+        .btn-clear:hover { border-color: #ff0050; color: #ff0050; }
+
+        /* 上传按钮 */
+        .upload-wrapper { margin-bottom: 30px; }
+        
+        .file-label {
+            display: inline-block;
+            padding: 12px 35px;
+            background: rgba(255,255,255,0.1);
+            border: 1px dashed #aaa;
+            color: #fff;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        .file-label:hover {
+            background: var(--primary);
+            color: #000;
+            border-color: var(--primary);
+            box-shadow: 0 0 20px rgba(0, 242, 234, 0.4);
+        }
+        input[type="file"] { display: none; }
+
+        /* 按钮组 */
+        .btn-group { display: flex; gap: 20px; justify-content: center; margin-bottom: 35px; }
+
+        .action-btn {
+            padding: 14px 40px;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+        
+        .btn-one { 
+            background: var(--primary); 
+            color: #000;
+            box-shadow: 0 4px 15px rgba(0, 242, 234, 0.3);
+        }
+        .btn-five { 
+            background: var(--secondary); 
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(255, 0, 80, 0.3);
+        }
+
+        .action-btn:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.1); }
+        .action-btn:active:not(:disabled) { transform: scale(0.95); }
+        .action-btn:disabled { background: #444; color: #777; cursor: not-allowed; box-shadow: none; }
+
+        /* --- 结果显示区 (关键修改) --- */
+        #result-area {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            min-height: 120px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            color: #333;
+            width: 180px;
+            height: 90px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 800;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s;
+        }
+        
+        /* 抽1人时的大卡片 */
+        .card.single-mode { width: 300px; height: 150px; font-size: 48px; }
+
+        /* 滚动状态：去除了模糊，文字清晰 */
+        .card.rolling {
+            background: #f0f0f0;
+            color: #333;
+            /* 关键修改：去除了 filter: blur(...)，让文字清晰可见 */
+            border: 2px solid #ccc;
+        }
+
+        /* 中奖状态 */
+        .card.winner {
+            background: #fff;
+            color: var(--secondary);
+            border: 3px solid var(--primary);
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            z-index: 100;
+        }
+        .card.winner.single-mode { color: var(--primary); border-color: var(--secondary); }
+
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1.1); opacity: 1; box-shadow: 0 0 30px var(--primary); }
+        }
+
+        .hint { margin-top: 25px; font-size: 13px; color: #888; }
+    </style>
+</head>
+<body>
+
+<div class="overlay"></div>
+
+<div class="container">
+    <h1>🎰 幸运大抽奖</h1>
+    
+    <div class="toolbar">
+        <div id="statusText">正在初始化...</div>
+        <button onclick="clearData()" class="btn-clear" id="clearBtn" style="display:none">清空名单</button>
+    </div>
+
+    <div class="upload-wrapper">
+        <label for="fileInput" class="file-label">
+            📂 上传名单 (Excel / TXT)
+        </label>
+        <input type="file" id="fileInput" accept=".xlsx, .xls, .txt, .csv">
+    </div>
+
+    <div class="btn-group">
+        <button onclick="startLottery(1)" class="action-btn btn-one" id="btn1" disabled>✨ 抽 1 人</button>
+        <button onclick="startLottery(5)" class="action-btn btn-five" id="btn5" disabled>🚀 抽 5 人</button>
+    </div>
+
+    <div id="result-area"></div>
+    
+    <div class="hint">
+        💡 提示：支持 Excel 自动识别姓名列，或直接上传 txt 文本文件。<br>
+        名字滚动时可清晰看见，增加紧张感。
+    </div>
+</div>
+
+<script>
+    let nameList = [];
+    let isDrawing = false;
+    const STORAGE_KEY = 'lottery_data_visible'; // 修改key避免冲突
+
+    window.onload = function() {
+        if (window.xlsxLoadError || typeof XLSX === 'undefined') {
+            document.getElementById('statusText').innerHTML = "⚠️ Excel组件加载慢，推荐使用 .txt 文件";
+        } else {
+            document.getElementById('statusText').innerText = "✅ 系统就绪";
+        }
+
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            try {
+                nameList = JSON.parse(saved);
+                if (nameList.length > 0) updateStatus(true);
+            } catch(e) { localStorage.removeItem(STORAGE_KEY); }
+        }
+    };
+
+    // 文件处理 (双保险模式)
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const fileName = file.name.toLowerCase();
+        const reader = new FileReader();
+
+        if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+            if (typeof XLSX === 'undefined') {
+                alert("组件未加载，请使用 .txt 文件上传！"); return;
+            }
+            reader.readAsArrayBuffer(file);
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const wb = XLSX.read(data, {type: 'array'});
+                    const ws = wb.Sheets[wb.SheetNames[0]];
+                    const json = XLSX.utils.sheet_to_json(ws, {header: 1});
+                    processData(json.flat());
+                } catch (err) { alert("Excel解析出错，请用TXT格式"); }
+            };
+        } else {
+            reader.readAsText(file, 'UTF-8');
+            reader.onload = function(e) {
+                const text = e.target.result;
+                processData(text.split(/\r?\n|[,，]/));
+            };
+        }
+    });
+
+    function processData(rawData) {
+        const keywords = ["姓名", "名字", "name", "人员", "名单"];
+        const cleanSet = new Set();
+        rawData.forEach(item => {
+            if (!item) return;
+            const str = String(item).trim();
+            if (str && str.length < 20 && !keywords.includes(str.toLowerCase())) {
+                cleanSet.add(str);
+            }
+        });
+        nameList = Array.from(cleanSet);
+        if (nameList.length === 0) return alert("没找到有效名字");
+        
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(nameList));
+        updateStatus(false);
+        document.getElementById('fileInput').value = '';
+    }
+
+    function updateStatus(isCached) {
+        const el = document.getElementById('statusText');
+        const prefix = isCached ? "⚡ 缓存已恢复" : "✅ 导入成功";
+        el.innerHTML = `${prefix}: 共 <strong style="color:#00f2ea">${nameList.length}</strong> 人`;
+        document.getElementById('btn1').disabled = false;
+        document.getElementById('btn5').disabled = nameList.length < 5;
+        document.getElementById('clearBtn').style.display = 'block';
+    }
+
+    function clearData() {
+        if(confirm('确定清空？')) {
+            localStorage.removeItem(STORAGE_KEY);
+            nameList = [];
+            document.getElementById('statusText').innerText = "🗑️ 数据已清空";
+            document.getElementById('result-area').innerHTML = '';
+            document.getElementById('btn1').disabled = true;
+            document.getElementById('btn5').disabled = true;
+            document.getElementById('clearBtn').style.display = 'none';
+        }
+    }
+
+    // --- 核心动画修改 ---
+    function startLottery(count) {
+        if (isDrawing) return;
+        if (nameList.length < count) return alert("人数不足");
+
+        isDrawing = true;
+        document.body.classList.add('drawing');
+        document.getElementById('btn1').disabled = true;
+        document.getElementById('btn5').disabled = true;
+        document.getElementById('clearBtn').disabled = true;
+
+        const resultArea = document.getElementById('result-area');
+        resultArea.innerHTML = '';
+
+        let pool = [...nameList].sort(() => Math.random() - 0.5);
+        const winners = pool.slice(0, count);
+
+        const cards = [];
+        for (let i = 0; i < count; i++) {
+            const card = document.createElement('div');
+            card.className = count === 1 ? 'card rolling single-mode' : 'card rolling';
+            card.innerText = '...';
+            resultArea.appendChild(card);
+            cards.push(card);
+        }
+
+        cards.forEach((card, idx) => {
+            // 修改点：滚动速度
+            // 之前是 50ms (非常快，看不清)
+            // 现在是 80ms (稍慢一点，能看清名字变换)
+            const rollTimer = setInterval(() => {
+                const randomName = pool[Math.floor(Math.random() * pool.length)];
+                card.innerText = randomName;
+            }, 80); 
+
+            // 停止时间：抽1人滚2.5秒，抽多人依次停下
+            const stopTime = count === 1 ? 2500 : 1500 + (idx * 600);
+
+            setTimeout(() => {
+                clearInterval(rollTimer);
+                card.innerText = winners[idx];
+                card.classList.remove('rolling'); // 移除滚动样式
+                card.classList.add('winner');     // 添加中奖样式
+
+                if (idx === count - 1) {
+                    setTimeout(() => {
+                        isDrawing = false;
+                        document.body.classList.remove('drawing');
+                        document.getElementById('btn1').disabled = false;
+                        document.getElementById('btn5').disabled = nameList.length < 5;
+                        document.getElementById('clearBtn').disabled = false;
+                        triggerConfetti();
+                    }, 500);
+                }
+            }, stopTime);
+        });
+    }
+
+    function triggerConfetti() {
+        if (typeof confetti === 'function') {
+            confetti({
+                particleCount: 150,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#00f2ea', '#ff0050', '#ffffff']
+            });
+        }
+    }
+</script>
+
+</body>
+</html><!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🚀 极速抽奖 (稳定修复版)</title>
     
     <!-- 核心库：增加 onerror 检测 -->
@@ -397,3 +790,4 @@
 
 </body>
 </html>
+
