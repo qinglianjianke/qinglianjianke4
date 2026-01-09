@@ -3,15 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎰 视听盛宴抽奖</title>
     
-    <!-- 👇👇👇 就是这里，修改这一行 👇👇👇 -->
-    <!-- 注意：请确保 Github 仓库里图片的名字和这里写的完全一样（包括后缀） -->
-    <link rel="icon" href="./Photo.jpg">
-    <!-- 👆👆👆 修改结束 👆👆👆 -->
-    <title>Lukey Dog抽奖😜</title>
+    <!-- 1. 设置图标 (本地图片) -->
+    <link rel="icon" href="./图标.png">
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" onerror="window.xlsxLoadError=true"></script>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- 2. 引入 Excel 解析库 (本地文件) -->
+    <!-- onerror 依然保留，万一文件丢了会有提示 -->
+    <script src="./xlsx.full.min.js" onerror="window.xlsxLoadError=true"></script>
+    
+    <!-- 3. 引入 礼花特效库 (本地文件) -->
+    <script src="./confetti.browser.min.js"></script>
     
     <style>
         :root {
@@ -485,4 +487,5 @@
 
 </body>
 </html>
+
 
