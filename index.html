@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎰 动态抽奖 (微模糊版)</title>
+    <title>🎰 视听盛宴抽奖 (音效版)</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" onerror="window.xlsxLoadError=true"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -12,12 +12,12 @@
         :root {
             --primary: #00f2ea;
             --secondary: #ff0050;
-            --bg-color: #1a1a2e;
+            --bg-dark: #0f0f1a;
         }
 
         body {
             font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            background: radial-gradient(circle at center, #232333 0%, #0d0d12 100%);
+            background: radial-gradient(circle at center, #2b2b40 0%, #000000 100%);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -25,6 +25,7 @@
             margin: 0;
             color: #fff;
             overflow-x: hidden;
+            user-select: none; /* 防止双击选中文本 */
         }
 
         .overlay {
@@ -44,12 +45,12 @@
             background: rgba(255, 255, 255, 0.05);
             padding: 2.5rem;
             border-radius: 20px;
-            box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+            box-shadow: 0 0 50px rgba(0, 242, 234, 0.15);
             border: 1px solid rgba(255, 255, 255, 0.1);
             width: 90%;
-            max-width: 800px;
+            max-width: 850px;
             text-align: center;
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(12px);
         }
 
         h1 {
@@ -62,32 +63,46 @@
             text-shadow: 0 5px 20px rgba(0,0,0,0.5);
         }
 
+        /* 工具栏 */
         .toolbar {
             display: flex;
             justify-content: space-between;
             align-items: center;
             background: rgba(0,0,0,0.4);
             padding: 8px 15px;
-            border-radius: 8px;
+            border-radius: 50px;
             margin-bottom: 25px;
             font-size: 14px;
             color: #aaa;
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
-        .btn-clear {
+        .tool-left { display: flex; align-items: center; gap: 15px; }
+
+        .btn-small {
             background: transparent;
             border: 1px solid #555;
-            color: #888;
+            color: #999;
             padding: 4px 12px;
-            border-radius: 4px;
+            border-radius: 20px;
             cursor: pointer;
             font-size: 12px;
             transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
-        .btn-clear:hover { border-color: #ff0050; color: #ff0050; }
-
-        .upload-wrapper { margin-bottom: 30px; }
+        .btn-small:hover { border-color: var(--primary); color: var(--primary); }
         
+        /* 音效按钮激活状态 */
+        .btn-small.active {
+            background: rgba(0, 242, 234, 0.1);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* 上传区域 */
+        .upload-wrapper { margin-bottom: 30px; }
         .file-label {
             display: inline-block;
             padding: 12px 40px;
@@ -103,29 +118,33 @@
             background: var(--primary);
             color: #000;
             border-color: var(--primary);
-            box-shadow: 0 0 25px rgba(0, 242, 234, 0.3);
+            box-shadow: 0 0 25px rgba(0, 242, 234, 0.4);
         }
         input[type="file"] { display: none; }
 
+        /* 按钮组 */
         .btn-group { display: flex; gap: 20px; justify-content: center; margin-bottom: 35px; }
 
         .action-btn {
             padding: 15px 45px;
             border: none;
-            border-radius: 10px;
+            border-radius: 12px;
             font-size: 18px;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.2s;
             text-transform: uppercase;
+            position: relative;
+            overflow: hidden;
         }
         
         .btn-one { background: var(--primary); color: #000; box-shadow: 0 4px 15px rgba(0, 242, 234, 0.2); }
         .btn-five { background: var(--secondary); color: white; box-shadow: 0 4px 15px rgba(255, 0, 80, 0.2); }
-        .action-btn:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.1); }
+        .action-btn:hover:not(:disabled) { transform: translateY(-3px); filter: brightness(1.1); }
+        .action-btn:active:not(:disabled) { transform: scale(0.95); }
         .action-btn:disabled { background: #444; color: #777; cursor: not-allowed; box-shadow: none; }
 
-        /* --- 结果显示区 --- */
+        /* 结果显示区 */
         #result-area {
             display: flex;
             flex-wrap: wrap;
@@ -148,27 +167,25 @@
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
             position: relative;
             overflow: hidden;
-            transition: transform 0.1s; /* 响应更灵敏 */
+            transition: transform 0.1s;
         }
         
-        .card.single-mode { width: 300px; height: 150px; font-size: 48px; }
+        .card.single-mode { width: 320px; height: 160px; font-size: 50px; }
 
-        /* 🟢 关键修改：动态模糊效果 */
+        /* 动态模糊 */
         .card.rolling {
             background: #e6e6e6;
             color: #444;
-            /* blur(1.5px) 是关键：既有速度感，又能看清字 */
-            filter: blur(1.5px); 
+            filter: blur(1.5px); /* 1.5px 模糊 */
             transform: scale(0.98);
         }
 
-        /* 中奖状态：瞬间清晰 */
+        /* 中奖状态 */
         .card.winner {
             background: #fff;
             color: var(--secondary);
             border: 3px solid var(--primary);
-            /* 去除模糊 */
-            filter: blur(0); 
+            filter: blur(0);
             transform: scale(1.1);
             animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
             z-index: 100;
@@ -188,11 +205,22 @@
 <div class="overlay"></div>
 
 <div class="container">
-    <h1>🎰 幸运大抽奖</h1>
+    <h1>🔊 幸运大抽奖</h1>
     
     <div class="toolbar">
-        <div id="statusText">正在初始化...</div>
-        <button onclick="clearData()" class="btn-clear" id="clearBtn" style="display:none">清空名单</button>
+        <div class="tool-left">
+            <div id="statusText">系统初始化中...</div>
+        </div>
+        
+        <div class="tool-left">
+            <!-- 音效开关按钮 -->
+            <button onclick="toggleSound()" class="btn-small active" id="soundBtn">
+                🔊 音效: 开
+            </button>
+            <button onclick="clearData()" class="btn-small" id="clearBtn" style="display:none">
+                🗑️ 清空
+            </button>
+        </div>
     </div>
 
     <div class="upload-wrapper">
@@ -208,17 +236,91 @@
     </div>
 
     <div id="result-area"></div>
-    <div class="hint">支持 Excel/TXT | 自动存档 | 动态模糊视效</div>
+    <div class="hint">自带机械音效与庆祝和弦 | 动态模糊视觉</div>
 </div>
 
 <script>
+    // --- 音效引擎 (Web Audio API) ---
+    // 不依赖外部文件，代码直接合成声音
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = new AudioContext();
+    let isMuted = false;
+
+    // 1. 短促的机械滴答声 (滚动时)
+    function playTick() {
+        if(isMuted) return;
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle'; // 三角波，比较清脆
+        osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.05);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.05);
+    }
+
+    // 2. 清脆的叮声 (中奖时)
+    function playWin() {
+        if(isMuted) return;
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1200, audioCtx.currentTime); // 高音C
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.5);
+    }
+
+    // 3. 庆祝和弦 (结束时)
+    function playFanfare() {
+        if(isMuted) return;
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C大调和弦
+        notes.forEach((freq, i) => {
+            setTimeout(() => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'square'; // 方波更有庆祝感
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.8);
+            }, i * 100);
+        });
+    }
+
+    function toggleSound() {
+        isMuted = !isMuted;
+        const btn = document.getElementById('soundBtn');
+        if (isMuted) {
+            btn.innerHTML = '🔇 音效: 关';
+            btn.classList.remove('active');
+        } else {
+            btn.innerHTML = '🔊 音效: 开';
+            btn.classList.add('active');
+            // 尝试唤醒 AudioContext (浏览器策略要求用户交互)
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+        }
+    }
+
+    // --- 抽奖逻辑 ---
     let nameList = [];
     let isDrawing = false;
-    const STORAGE_KEY = 'lottery_blur_fixed';
+    const STORAGE_KEY = 'lottery_sound_v1';
 
     window.onload = function() {
         if (window.xlsxLoadError || typeof XLSX === 'undefined') {
-            document.getElementById('statusText').innerHTML = "⚠️ 建议使用 .txt 文件上传";
+            document.getElementById('statusText').innerHTML = "⚠️ 建议使用 .txt 文件";
         } else {
             document.getElementById('statusText').innerText = "✅ 系统就绪";
         }
@@ -237,10 +339,11 @@
         const reader = new FileReader();
         const fileName = file.name.toLowerCase();
 
+        // 唤醒音频上下文
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+
         if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-            if (typeof XLSX === 'undefined') {
-                alert("组件未加载，请使用 .txt 文件！"); return;
-            }
+            if (typeof XLSX === 'undefined') { alert("组件未加载，请用TXT"); return; }
             reader.readAsArrayBuffer(file);
             reader.onload = function(e) {
                 try {
@@ -248,13 +351,11 @@
                     const wb = XLSX.read(data, {type: 'array'});
                     const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header: 1});
                     processData(json.flat());
-                } catch (err) { alert("Excel解析出错，请换用TXT"); }
+                } catch (err) { alert("Excel错误，请用TXT"); }
             };
         } else {
             reader.readAsText(file, 'UTF-8');
-            reader.onload = function(e) {
-                processData(e.target.result.split(/\r?\n|[,，]/));
-            };
+            reader.onload = function(e) { processData(e.target.result.split(/\r?\n|[,，]/)); };
         }
     });
 
@@ -294,16 +395,20 @@
         }
     }
 
-    // --- 核心动画逻辑 ---
+    // --- 动画循环 ---
     function startLottery(count) {
         if (isDrawing) return;
         if (nameList.length < count) return alert("人数不足");
+
+        // 确保音频上下文已启动
+        if(audioCtx.state === 'suspended') audioCtx.resume();
 
         isDrawing = true;
         document.body.classList.add('drawing');
         document.getElementById('btn1').disabled = true;
         document.getElementById('btn5').disabled = true;
         document.getElementById('clearBtn').disabled = true;
+        document.getElementById('soundBtn').disabled = true; // 抽奖中禁止切换音效
 
         const resultArea = document.getElementById('result-area');
         resultArea.innerHTML = '';
@@ -321,12 +426,16 @@
         }
 
         cards.forEach((card, idx) => {
-            // 🟢 修改点：每60毫秒变一次，配合1.5px的模糊，视觉效果最佳
+            // 滚动定时器 (60ms)
             const rollTimer = setInterval(() => {
                 const randomName = pool[Math.floor(Math.random() * pool.length)];
                 card.innerText = randomName;
+                // 播放滴答声 (为了不也太吵，利用随机数稍微稀疏一点点，或者每次都放)
+                // 这里每次都放，模拟高转速
+                playTick(); 
             }, 60); 
 
+            // 停止时间
             const stopTime = count === 1 ? 2000 : 1500 + (idx * 600);
 
             setTimeout(() => {
@@ -334,6 +443,9 @@
                 card.innerText = winners[idx];
                 card.classList.remove('rolling');
                 card.classList.add('winner');
+                
+                // 播放中奖音效
+                playWin();
 
                 if (idx === count - 1) {
                     setTimeout(() => {
@@ -342,6 +454,10 @@
                         document.getElementById('btn1').disabled = false;
                         document.getElementById('btn5').disabled = nameList.length < 5;
                         document.getElementById('clearBtn').disabled = false;
+                        document.getElementById('soundBtn').disabled = false;
+                        
+                        // 播放庆祝音效
+                        playFanfare();
                         triggerConfetti();
                     }, 500);
                 }
@@ -354,8 +470,8 @@
             const end = Date.now() + 2000;
             const colors = ['#00f2ea', '#ff0050', '#ffffff'];
             (function frame() {
-                confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors: colors });
-                confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors: colors });
+                confetti({ particleCount: 4, angle: 60, spread: 55, origin: { x: 0 }, colors: colors });
+                confetti({ particleCount: 4, angle: 120, spread: 55, origin: { x: 1 }, colors: colors });
                 if (Date.now() < end) requestAnimationFrame(frame);
             }());
         }
