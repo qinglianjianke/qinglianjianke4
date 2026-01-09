@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>✨ Lucky Dog抽奖</title>
+    <title>✨ 智能抽奖系统 (自动存档版)</title>
     <!-- 引入 Excel 解析库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <!-- 引入 礼花特效库 -->
@@ -11,9 +11,10 @@
     
     <style>
         :root {
-            --primary-color: #4a90e2;
-            --accent-color: #ff6b6b;
-            --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --primary-color: #6c5ce7;
+            --secondary-color: #00cec9;
+            --accent-color: #fab1a0;
+            --bg-gradient: linear-gradient(135deg, #a8c0ff 0%, #3f2b96 100%);
         }
 
         body {
@@ -24,201 +25,243 @@
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            color: #333;
+            color: #2d3436;
         }
 
         .container {
-            background-color: rgba(255, 255, 255, 0.95);
+            background-color: rgba(255, 255, 255, 0.96);
             padding: 2.5rem;
             border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             width: 90%;
-            max-width: 700px;
+            max-width: 750px;
             text-align: center;
             backdrop-filter: blur(10px);
+            position: relative;
         }
 
         h1 {
-            margin: 0 0 25px 0;
-            color: #2c3e50;
+            margin: 0 0 10px 0;
+            color: #2d3436;
             font-weight: 800;
-            font-size: 2rem;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            font-size: 2.2rem;
+            background: -webkit-linear-gradient(45deg, #6c5ce7, #0984e3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
-        /* 上传区域 */
-        .upload-area {
-            border: 2px dashed #cbd5e0;
-            border-radius: 12px;
-            padding: 20px;
+        /* 顶部工具栏 */
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f1f2f6;
+            border-radius: 10px;
+        }
+
+        .status {
+            font-size: 14px;
+            color: #636e72;
+            font-weight: 600;
+            text-align: left;
+            flex-grow: 1;
+            padding-left: 10px;
+        }
+
+        .btn-clear {
+            padding: 6px 12px;
+            font-size: 12px;
+            background: #ff7675;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            opacity: 0.8;
+        }
+        .btn-clear:hover { opacity: 1; }
+
+        /* 上传按钮 */
+        .upload-wrapper {
             margin-bottom: 25px;
-            transition: all 0.3s;
-            background: #f8fafc;
         }
-
-        .upload-area:hover {
-            border-color: var(--primary-color);
-            background: #edf2f7;
-        }
+        
+        input[type="file"] { display: none; }
 
         .custom-file-upload {
             display: inline-block;
-            padding: 10px 20px;
+            padding: 12px 30px;
             cursor: pointer;
-            background: var(--primary-color);
-            color: white;
+            background: white;
+            color: var(--primary-color);
+            border: 2px dashed var(--primary-color);
             border-radius: 50px;
-            font-size: 15px;
+            font-size: 16px;
             font-weight: bold;
-            box-shadow: 0 4px 6px rgba(74, 144, 226, 0.3);
-            transition: transform 0.2s;
+            transition: all 0.3s;
         }
 
         .custom-file-upload:hover {
-            transform: translateY(-2px);
-            background: #357abd;
+            background: var(--primary-color);
+            color: white;
         }
 
-        input[type="file"] { display: none; }
-
-        .status {
-            margin-top: 12px;
-            font-size: 14px;
-            color: #718096;
-            font-weight: 500;
-        }
-
-        /* 按钮组 */
+        /* 核心按钮组 */
         .btn-group {
             display: flex;
-            gap: 15px;
+            gap: 20px;
             justify-content: center;
             margin-bottom: 30px;
         }
 
-        button {
-            padding: 14px 30px;
+        button.action-btn {
+            padding: 15px 40px;
             border: none;
-            border-radius: 12px;
-            font-size: 18px;
+            border-radius: 15px;
+            font-size: 20px;
             cursor: pointer;
             transition: all 0.2s;
             font-weight: bold;
             color: white;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
         }
 
-        button:active { transform: scale(0.95); }
+        button.action-btn:active { transform: scale(0.95); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
 
-        .btn-one { background: linear-gradient(45deg, #11998e, #38ef7d); }
-        .btn-five { background: linear-gradient(45deg, #ff512f, #dd2476); }
+        .btn-one { background: linear-gradient(45deg, #0984e3, #74b9ff); }
+        .btn-five { background: linear-gradient(45deg, #d63031, #ff7675); }
         
         button:disabled {
-            background: #cbd5e0;
+            background: #dfe6e9;
+            color: #b2bec3;
             cursor: not-allowed;
             box-shadow: none;
             transform: none;
         }
 
-        /* 结果区域 */
+        /* 结果展示区 */
         #result-area {
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
             gap: 15px;
-            min-height: 120px;
-            perspective: 1000px;
+            min-height: 140px;
         }
 
         .result-card {
             background: white;
-            border: 1px solid #e2e8f0;
-            border-left: 5px solid var(--accent-color);
-            color: #2d3748;
+            border: 1px solid #dfe6e9;
+            color: #2d3436;
             padding: 20px 10px;
-            border-radius: 10px;
-            font-size: 28px;
+            border-radius: 12px;
+            font-size: 24px;
             font-weight: bold;
             width: 100%;
-            max-width: 200px; /* 抽5人时卡片小一点 */
+            max-width: 180px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
             display: flex;
             align-items: center;
             justify-content: center;
             transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
         }
         
-        /* 抽1人时的大卡片样式 */
+        .result-card::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 6px;
+            background: var(--secondary-color);
+        }
+
         .result-card.single-mode {
-            max-width: 80%;
-            font-size: 40px;
-            padding: 40px 20px;
-            border-left: 8px solid var(--primary-color);
-            background: #f0f9ff;
+            max-width: 90%;
+            font-size: 45px;
+            padding: 40px;
+            background: linear-gradient(to right, #fff, #f0f9ff);
         }
 
-        /* 滚动时的样式 */
         .rolling {
-            color: #a0aec0;
+            color: #b2bec3;
             transform: scale(0.98);
-            border-left-color: #cbd5e0;
         }
 
-        /* 中奖时的弹出动画 */
         .winner-pop {
             animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-            background: #fffbe6; /* 淡淡的金色背景 */
-            border-color: #f6ad55;
-            color: #d69e2e;
-            transform: scale(1.05);
-            box-shadow: 0 10px 20px rgba(214, 158, 46, 0.2);
+            background: #ffeaa7;
+            border: 2px solid #fdcb6e;
+            transform: scale(1.1);
+            box-shadow: 0 10px 25px rgba(253, 203, 110, 0.4);
+            z-index: 10;
         }
 
         @keyframes popIn {
-            0% { opacity: 0; transform: scale(0.5) translateY(20px); }
-            100% { opacity: 1; transform: scale(1.05) translateY(0); }
+            0% { opacity: 0; transform: scale(0.5); }
+            100% { opacity: 1; transform: scale(1.1); }
         }
 
         .hint {
-            margin-top: 30px;
+            margin-top: 20px;
             font-size: 12px;
-            color: #a0aec0;
+            color: #b2bec3;
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>🎰 幸运抽奖</h1>
+    <h1>🍀 幸运抽奖</h1>
+    
+    <!-- 状态栏与清除按钮 -->
+    <div class="toolbar">
+        <div class="status" id="statusText">等待导入名单...</div>
+        <button onclick="clearData()" class="btn-clear" id="clearBtn" style="display:none">🗑️ 清除名单</button>
+    </div>
 
-    <!-- 上传区域 -->
-    <div class="upload-area">
+    <!-- 上传区域 (如果有缓存数据则自动隐藏，或显示为重新上传) -->
+    <div class="upload-wrapper">
         <label for="fileInput" class="custom-file-upload">
-            📂 上传 Excel 名单
+            📂 导入 Excel (.xlsx)
         </label>
         <input type="file" id="fileInput" accept=".xlsx, .xls">
-        <div class="status" id="statusText">请上传包含名字的 Excel 文件</div>
     </div>
 
-    <!-- 按钮 -->
+    <!-- 抽奖按钮 -->
     <div class="btn-group">
-        <button onclick="startLottery(1)" class="btn-one" id="btn1" disabled>✨ 抽 1 人</button>
-        <button onclick="startLottery(5)" class="btn-five" id="btn5" disabled>🚀 抽 5 人</button>
+        <button onclick="startLottery(1)" class="action-btn btn-one" id="btn1" disabled>🎲 抽 1 人</button>
+        <button onclick="startLottery(5)" class="action-btn btn-five" id="btn5" disabled>🚀 抽 5 人</button>
     </div>
 
-    <!-- 结果展示 -->
+    <!-- 结果区域 -->
     <div id="result-area"></div>
     
-    <div class="hint">支持格式: .xlsx (自动读取第一列名单)</div>
+    <div class="hint">系统会自动识别 "姓名" 列并自动保存，刷新页面不丢失</div>
 </div>
 
 <script>
     let nameList = [];
-    let isDrawing = false; // 防止重复点击
+    let isDrawing = false;
+    const STORAGE_KEY = 'lottery_names_v2'; // 本地存储的键名
 
-    // 1. 处理文件上传
+    // 页面加载时：检查本地缓存
+    window.onload = function() {
+        const savedData = localStorage.getItem(STORAGE_KEY);
+        if (savedData) {
+            try {
+                nameList = JSON.parse(savedData);
+                if (Array.isArray(nameList) && nameList.length > 0) {
+                    updateStatus(true); // true 表示来自缓存
+                }
+            } catch (e) {
+                console.error("缓存读取失败", e);
+                localStorage.removeItem(STORAGE_KEY);
+            }
+        }
+    };
+
+    // 1. 处理文件上传（含智能列识别）
     document.getElementById('fileInput').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
@@ -230,94 +273,154 @@
                 const workbook = XLSX.read(data, {type: 'array'});
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+                
+                // 转换为二维数组（header:1）以便分析表头
+                const rows = XLSX.utils.sheet_to_json(worksheet, {header: 1});
 
-                // 清洗数据
-                nameList = jsonData.flat()
-                                   .map(item => item ? String(item).trim() : "")
-                                   .filter(item => item && item !== "姓名" && item !== "名单");
+                if (rows.length === 0) {
+                    alert("Excel 文件为空！");
+                    return;
+                }
 
-                updateStatus();
+                // --- 智能识别列逻辑 ---
+                let targetColIndex = 0; // 默认第0列（A列）
+                const headerRow = rows[0]; // 第一行作为表头
+
+                // 尝试查找包含 "姓名"、"名字"、"Name" 的列
+                const keywords = ["姓名", "名字", "name", "names", "人员"];
+                let foundIndex = -1;
+
+                if (headerRow && headerRow.length > 0) {
+                    foundIndex = headerRow.findIndex(cell => {
+                        if (!cell) return false;
+                        const cellStr = String(cell).trim().toLowerCase();
+                        return keywords.some(k => cellStr.includes(k));
+                    });
+                }
+
+                if (foundIndex !== -1) {
+                    targetColIndex = foundIndex;
+                    console.log(`智能识别：在第 ${targetColIndex + 1} 列找到姓名列`);
+                } else {
+                    console.log("未找到特定表头，默认使用第 1 列");
+                }
+
+                // 提取数据（从所有行中提取指定列）
+                // 使用 Set 去重
+                const extractedNames = new Set();
+                
+                rows.forEach(row => {
+                    const cellValue = row[targetColIndex];
+                    if (cellValue) {
+                        const cleanName = String(cellValue).trim();
+                        // 过滤掉表头本身和空值
+                        if (cleanName && !keywords.includes(cleanName.toLowerCase())) {
+                            extractedNames.add(cleanName);
+                        }
+                    }
+                });
+
+                nameList = Array.from(extractedNames);
+
+                if (nameList.length === 0) {
+                    alert("未在文件中提取到有效名单，请检查格式。");
+                    return;
+                }
+
+                // 保存到本地存储
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(nameList));
+                
+                updateStatus(false);
+                // 重置 file input，允许重复上传同名文件
+                document.getElementById('fileInput').value = ''; 
+
             } catch (error) {
                 console.error(error);
-                alert("文件解析失败，请检查是否为有效的 Excel 文件");
+                alert("文件解析失败，请确保文件未加密且格式正确。");
             }
         };
         reader.readAsArrayBuffer(file);
     });
 
-    function updateStatus() {
+    // 更新界面状态
+    function updateStatus(fromCache = false) {
         const statusText = document.getElementById('statusText');
         const btn1 = document.getElementById('btn1');
         const btn5 = document.getElementById('btn5');
+        const clearBtn = document.getElementById('clearBtn');
 
         if (nameList.length > 0) {
-            statusText.innerHTML = `✅ 名单池已就绪：共 <strong>${nameList.length}</strong> 人`;
-            statusText.style.color = '#38a169';
+            const sourceInfo = fromCache ? '<span style="color:#0984e3">[已恢复上次存档]</span>' : '<span style="color:#00b894">[新导入]</span>';
+            statusText.innerHTML = `✅ 就绪: 共 <strong>${nameList.length}</strong> 人 ${sourceInfo}`;
+            
             btn1.disabled = false;
             btn5.disabled = nameList.length < 5;
+            clearBtn.style.display = 'block';
         } else {
-            statusText.innerText = "⚠️ 文件中未找到有效名字";
-            statusText.style.color = '#e53e3e';
+            statusText.innerText = "等待导入名单...";
+            btn1.disabled = true;
+            btn5.disabled = true;
+            clearBtn.style.display = 'none';
         }
     }
 
-    // 2. 核心抽奖逻辑
+    // 清除数据
+    function clearData() {
+        if(confirm('确定要清除当前的名单存档吗？')) {
+            localStorage.removeItem(STORAGE_KEY);
+            nameList = [];
+            document.getElementById('result-area').innerHTML = '';
+            updateStatus();
+        }
+    }
+
+    // --- 抽奖逻辑 (与之前相同) ---
     function startLottery(count) {
-        if (isDrawing) return; // 正在抽奖中，拦截点击
+        if (isDrawing) return; 
         if (nameList.length < count) return alert("名单人数不足！");
 
         isDrawing = true;
-        setButtonsState(true); // 禁用按钮
+        setButtonsState(true); 
 
         const resultArea = document.getElementById('result-area');
         resultArea.innerHTML = '';
 
-        // 选出中奖者（逻辑上先选好，动画只是展示过程）
         let tempPool = [...nameList];
-        // 洗牌算法
         for (let i = tempPool.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [tempPool[i], tempPool[j]] = [tempPool[j], tempPool[i]];
         }
         const winners = tempPool.slice(0, count);
 
-        // 创建占位卡片
         const cardElements = [];
         for (let i = 0; i < count; i++) {
             const card = document.createElement('div');
             card.className = 'result-card rolling';
-            if (count === 1) card.classList.add('single-mode'); // 单人抽奖特殊样式
-            card.innerText = '准备中...';
+            if (count === 1) card.classList.add('single-mode'); 
+            card.innerText = '...';
             resultArea.appendChild(card);
             cardElements.push(card);
         }
 
-        // 3. 执行动画
         cardElements.forEach((card, index) => {
-            // 滚动效果定时器
             let rollInterval = setInterval(() => {
-                // 随机显示名单中的名字，制造滚动效果
                 const randomName = nameList[Math.floor(Math.random() * nameList.length)];
                 card.innerText = randomName;
-            }, 50); // 每50毫秒变一次
+            }, 50);
 
-            // 停止时间的逻辑：
-            // 如果抽1人，滚2秒停。
-            // 如果抽5人，第1个滚2秒，第2个滚2.2秒... 制造交错感
-            const stopDelay = 1500 + (index * 300);
+            // 抽1人2秒停，抽5人交错停
+            const stopDelay = count === 1 ? 2000 : 1500 + (index * 400);
 
             setTimeout(() => {
-                clearInterval(rollInterval); // 停止滚动
-                card.innerText = winners[index]; // 显示真名
+                clearInterval(rollInterval);
+                card.innerText = winners[index]; 
                 card.classList.remove('rolling');
-                card.classList.add('winner-pop'); // 添加中奖样式
+                card.classList.add('winner-pop'); 
                 
-                // 如果是最后一张卡片停下，结束抽奖状态并撒花
                 if (index === count - 1) {
                     isDrawing = false;
                     setButtonsState(false);
-                    triggerConfetti(); // 撒花
+                    triggerConfetti(); 
                 }
             }, stopDelay);
         });
@@ -325,13 +428,12 @@
 
     function setButtonsState(disabled) {
         document.getElementById('btn1').disabled = disabled;
-        // 如果名单不足5人，即使动画结束也不能启用5人按钮
         document.getElementById('btn5').disabled = disabled || nameList.length < 5;
+        document.getElementById('clearBtn').disabled = disabled;
     }
 
-    // 4. 撒花特效 (Confetti)
     function triggerConfetti() {
-        const duration = 3000;
+        const duration = 2500;
         const end = Date.now() + duration;
 
         (function frame() {
@@ -340,14 +442,14 @@
                 angle: 60,
                 spread: 55,
                 origin: { x: 0 },
-                colors: ['#ff6b6b', '#4a90e2', '#f6ad55']
+                colors: ['#0984e3', '#00b894', '#fdcb6e']
             });
             confetti({
                 particleCount: 5,
                 angle: 120,
                 spread: 55,
                 origin: { x: 1 },
-                colors: ['#ff6b6b', '#4a90e2', '#f6ad55']
+                colors: ['#0984e3', '#00b894', '#fdcb6e']
             });
 
             if (Date.now() < end) {
