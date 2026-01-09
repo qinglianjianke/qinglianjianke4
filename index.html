@@ -3,461 +3,249 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>✨ 智能抽奖系统 (自动存档版)</title>
-    <!-- 引入 Excel 解析库 -->
+    <title>🚀 极速抽奖 Pro (终极动画版)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <!-- 引入 礼花特效库 -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
     <style>
         :root {
-            --primary-color: #6c5ce7;
-            --secondary-color: #00cec9;
-            --accent-color: #fab1a0;
-            --bg-gradient: linear-gradient(135deg, #a8c0ff 0%, #3f2b96 100%);
+            --primary: #00f2ea;
+            --secondary: #ff0050;
+            --bg-color: #1a1a2e;
+            --card-bg: #16213e;
+            --text-color: #e94560;
         }
 
         body {
-            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
-            background: var(--bg-gradient);
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: radial-gradient(circle at center, #1a1a2e 0%, #0f0f1a 100%);
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            color: #2d3436;
+            color: #fff;
+            overflow-x: hidden;
         }
 
+        /* 沉浸式遮罩层 */
+        .overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 10;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s;
+        }
+        body.drawing .overlay { opacity: 1; }
+
         .container {
-            background-color: rgba(255, 255, 255, 0.96);
+            position: relative;
+            z-index: 20; /* 保证在遮罩之上 */
+            background: rgba(255, 255, 255, 0.05);
             padding: 2.5rem;
             border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            box-shadow: 0 0 50px rgba(0, 242, 234, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             width: 90%;
-            max-width: 750px;
+            max-width: 800px;
             text-align: center;
-            backdrop-filter: blur(10px);
-            position: relative;
+            backdrop-filter: blur(15px);
+            transition: transform 0.5s;
         }
 
         h1 {
             margin: 0 0 10px 0;
-            color: #2d3436;
-            font-weight: 800;
-            font-size: 2.2rem;
-            background: -webkit-linear-gradient(45deg, #6c5ce7, #0984e3);
+            font-weight: 900;
+            font-size: 2.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            background: linear-gradient(90deg, #00f2ea, #ff0050);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(0, 242, 234, 0.5);
         }
 
-        /* 顶部工具栏 */
+        /* 工具栏 */
         .toolbar {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            padding: 10px;
-            background: #f1f2f6;
-            border-radius: 10px;
+            margin-bottom: 25px;
+            background: rgba(0,0,0,0.2);
+            padding: 10px 20px;
+            border-radius: 50px;
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
-        .status {
-            font-size: 14px;
-            color: #636e72;
-            font-weight: 600;
-            text-align: left;
-            flex-grow: 1;
-            padding-left: 10px;
-        }
+        .status { font-size: 14px; color: #a0a0a0; }
+        .highlight-num { color: var(--primary); font-weight: bold; font-size: 1.1em; }
 
         .btn-clear {
-            padding: 6px 12px;
-            font-size: 12px;
-            background: #ff7675;
-            color: white;
-            border: none;
-            border-radius: 6px;
+            background: transparent;
+            border: 1px solid #ff0050;
+            color: #ff0050;
+            padding: 5px 15px;
+            border-radius: 20px;
             cursor: pointer;
-            opacity: 0.8;
+            font-size: 12px;
+            transition: 0.3s;
         }
-        .btn-clear:hover { opacity: 1; }
+        .btn-clear:hover { background: #ff0050; color: white; }
 
-        /* 上传按钮 */
-        .upload-wrapper {
-            margin-bottom: 25px;
-        }
-        
-        input[type="file"] { display: none; }
-
-        .custom-file-upload {
+        /* 文件上传 */
+        .file-label {
             display: inline-block;
             padding: 12px 30px;
+            background: rgba(255,255,255,0.1);
+            border: 1px dashed var(--primary);
+            border-radius: 10px;
             cursor: pointer;
-            background: white;
-            color: var(--primary-color);
-            border: 2px dashed var(--primary-color);
-            border-radius: 50px;
-            font-size: 16px;
-            font-weight: bold;
-            transition: all 0.3s;
-        }
-
-        .custom-file-upload:hover {
-            background: var(--primary-color);
-            color: white;
-        }
-
-        /* 核心按钮组 */
-        .btn-group {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
+            transition: 0.3s;
             margin-bottom: 30px;
         }
+        .file-label:hover { background: rgba(0, 242, 234, 0.1); box-shadow: 0 0 15px var(--primary); }
+        input[type="file"] { display: none; }
 
-        button.action-btn {
+        /* 按钮组 */
+        .btn-group { display: flex; gap: 20px; justify-content: center; margin-bottom: 40px; }
+
+        .action-btn {
+            position: relative;
             padding: 15px 40px;
             border: none;
-            border-radius: 15px;
-            font-size: 20px;
-            cursor: pointer;
-            transition: all 0.2s;
+            border-radius: 12px;
+            font-size: 18px;
             font-weight: bold;
-            color: white;
-            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+            color: #000;
+            cursor: pointer;
+            overflow: hidden;
+            transition: 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
-        button.action-btn:active { transform: scale(0.95); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-
-        .btn-one { background: linear-gradient(45deg, #0984e3, #74b9ff); }
-        .btn-five { background: linear-gradient(45deg, #d63031, #ff7675); }
+        .btn-one { background: var(--primary); box-shadow: 0 0 20px rgba(0, 242, 234, 0.4); }
+        .btn-five { background: var(--secondary); color: white; box-shadow: 0 0 20px rgba(255, 0, 80, 0.4); }
         
-        button:disabled {
-            background: #dfe6e9;
-            color: #b2bec3;
-            cursor: not-allowed;
-            box-shadow: none;
-            transform: none;
-        }
+        .action-btn:hover:not(:disabled) { transform: translateY(-3px) scale(1.05); filter: brightness(1.2); }
+        .action-btn:active:not(:disabled) { transform: scale(0.95); }
+        .action-btn:disabled { background: #333; color: #666; box-shadow: none; cursor: not-allowed; }
 
-        /* 结果展示区 */
+        /* --- 核心动画区 --- */
         #result-area {
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 15px;
-            min-height: 140px;
+            gap: 20px;
+            min-height: 150px;
+            perspective: 1000px; /* 3D透视 */
         }
 
-        .result-card {
-            background: white;
-            border: 1px solid #dfe6e9;
-            color: #2d3436;
-            padding: 20px 10px;
-            border-radius: 12px;
-            font-size: 24px;
-            font-weight: bold;
-            width: 100%;
-            max-width: 180px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        .card {
+            background: #fff;
+            color: #333;
+            width: 180px;
+            height: 100px;
+            border-radius: 15px;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.3s;
+            font-size: 24px;
+            font-weight: 800;
             position: relative;
-            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            /* 默认状态 */
+            transform-style: preserve-3d;
+            transition: all 0.3s;
+        }
+
+        .card.single-mode {
+            width: 80%;
+            height: 150px;
+            font-size: 48px;
+            background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%);
+        }
+
+        /* 1. 极速滚动状态：模糊 + 颤动 */
+        .card.rolling {
+            background: #e0e0e0;
+            color: #555;
+            /* 关键：利用 blur 滤镜模拟速度感 */
+            filter: blur(3px); 
+            transform: scale(0.95);
+        }
+
+        /* 2. 中奖揭晓状态：翻转 + 发光 */
+        .card.winner {
+            background: #fff;
+            color: var(--secondary);
+            animation: winnerReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+            border: 4px solid var(--primary);
+            z-index: 100; /* 确保浮在最上面 */
         }
         
-        .result-card::before {
-            content: '';
-            position: absolute;
-            left: 0; top: 0; bottom: 0;
-            width: 6px;
-            background: var(--secondary-color);
+        .card.winner.single-mode {
+             color: var(--primary);
+             border-color: var(--secondary);
         }
 
-        .result-card.single-mode {
-            max-width: 90%;
-            font-size: 45px;
-            padding: 40px;
-            background: linear-gradient(to right, #fff, #f0f9ff);
+        @keyframes winnerReveal {
+            0% { 
+                transform: scale(0.5) rotateX(90deg); 
+                opacity: 0;
+                filter: blur(10px);
+            }
+            60% {
+                transform: scale(1.1) rotateX(-10deg);
+                filter: blur(0px);
+                box-shadow: 0 0 50px var(--primary), 0 0 100px var(--primary);
+            }
+            100% { 
+                transform: scale(1) rotateX(0deg); 
+                opacity: 1;
+                box-shadow: 0 0 30px var(--primary);
+            }
         }
 
-        .rolling {
-            color: #b2bec3;
-            transform: scale(0.98);
-        }
+        .hint { margin-top: 30px; font-size: 12px; color: #666; }
 
-        .winner-pop {
-            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-            background: #ffeaa7;
-            border: 2px solid #fdcb6e;
-            transform: scale(1.1);
-            box-shadow: 0 10px 25px rgba(253, 203, 110, 0.4);
-            z-index: 10;
-        }
-
-        @keyframes popIn {
-            0% { opacity: 0; transform: scale(0.5); }
-            100% { opacity: 1; transform: scale(1.1); }
-        }
-
-        .hint {
-            margin-top: 20px;
-            font-size: 12px;
-            color: #b2bec3;
-        }
     </style>
 </head>
 <body>
 
+<!-- 黑色遮罩层 -->
+<div class="overlay"></div>
+
 <div class="container">
-    <h1>🍀 幸运抽奖</h1>
+    <h1>⚡ CYBER LOTTERY</h1>
     
-    <!-- 状态栏与清除按钮 -->
     <div class="toolbar">
-        <div class="status" id="statusText">等待导入名单...</div>
-        <button onclick="clearData()" class="btn-clear" id="clearBtn" style="display:none">🗑️ 清除名单</button>
+        <div class="status" id="statusText">SYSTEM READY...</div>
+        <button onclick="clearData()" class="btn-clear" id="clearBtn" style="display:none">RESET DATA</button>
     </div>
 
-    <!-- 上传区域 (如果有缓存数据则自动隐藏，或显示为重新上传) -->
     <div class="upload-wrapper">
-        <label for="fileInput" class="custom-file-upload">
-            📂 导入 Excel (.xlsx)
+        <label for="fileInput" class="file-label">
+            📂 加载人员名单 (Excel)
         </label>
         <input type="file" id="fileInput" accept=".xlsx, .xls">
     </div>
 
-    <!-- 抽奖按钮 -->
     <div class="btn-group">
-        <button onclick="startLottery(1)" class="action-btn btn-one" id="btn1" disabled>🎲 抽 1 人</button>
-        <button onclick="startLottery(5)" class="action-btn btn-five" id="btn5" disabled>🚀 抽 5 人</button>
+        <button onclick="startLottery(1)" class="action-btn btn-one" id="btn1" disabled>幸运之星</button>
+        <button onclick="startLottery(5)" class="action-btn btn-five" id="btn5" disabled>五人成团</button>
     </div>
 
-    <!-- 结果区域 -->
     <div id="result-area"></div>
-    
-    <div class="hint">系统会自动识别 "姓名" 列并自动保存，刷新页面不丢失</div>
+    <div class="hint">支持 .xlsx 格式 / 自动识别姓名列 / 自动存档</div>
 </div>
 
 <script>
     let nameList = [];
     let isDrawing = false;
-    const STORAGE_KEY = 'lottery_names_v2'; // 本地存储的键名
+    const STORAGE_KEY = 'cyber_lottery_v3';
 
-    // 页面加载时：检查本地缓存
-    window.onload = function() {
-        const savedData = localStorage.getItem(STORAGE_KEY);
-        if (savedData) {
-            try {
-                nameList = JSON.parse(savedData);
-                if (Array.isArray(nameList) && nameList.length > 0) {
-                    updateStatus(true); // true 表示来自缓存
-                }
-            } catch (e) {
-                console.error("缓存读取失败", e);
-                localStorage.removeItem(STORAGE_KEY);
-            }
-        }
-    };
-
-    // 1. 处理文件上传（含智能列识别）
-    document.getElementById('fileInput').addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-        
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const data = new Uint8Array(e.target.result);
-            try {
-                const workbook = XLSX.read(data, {type: 'array'});
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                
-                // 转换为二维数组（header:1）以便分析表头
-                const rows = XLSX.utils.sheet_to_json(worksheet, {header: 1});
-
-                if (rows.length === 0) {
-                    alert("Excel 文件为空！");
-                    return;
-                }
-
-                // --- 智能识别列逻辑 ---
-                let targetColIndex = 0; // 默认第0列（A列）
-                const headerRow = rows[0]; // 第一行作为表头
-
-                // 尝试查找包含 "姓名"、"名字"、"Name" 的列
-                const keywords = ["姓名", "名字", "name", "names", "人员"];
-                let foundIndex = -1;
-
-                if (headerRow && headerRow.length > 0) {
-                    foundIndex = headerRow.findIndex(cell => {
-                        if (!cell) return false;
-                        const cellStr = String(cell).trim().toLowerCase();
-                        return keywords.some(k => cellStr.includes(k));
-                    });
-                }
-
-                if (foundIndex !== -1) {
-                    targetColIndex = foundIndex;
-                    console.log(`智能识别：在第 ${targetColIndex + 1} 列找到姓名列`);
-                } else {
-                    console.log("未找到特定表头，默认使用第 1 列");
-                }
-
-                // 提取数据（从所有行中提取指定列）
-                // 使用 Set 去重
-                const extractedNames = new Set();
-                
-                rows.forEach(row => {
-                    const cellValue = row[targetColIndex];
-                    if (cellValue) {
-                        const cleanName = String(cellValue).trim();
-                        // 过滤掉表头本身和空值
-                        if (cleanName && !keywords.includes(cleanName.toLowerCase())) {
-                            extractedNames.add(cleanName);
-                        }
-                    }
-                });
-
-                nameList = Array.from(extractedNames);
-
-                if (nameList.length === 0) {
-                    alert("未在文件中提取到有效名单，请检查格式。");
-                    return;
-                }
-
-                // 保存到本地存储
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(nameList));
-                
-                updateStatus(false);
-                // 重置 file input，允许重复上传同名文件
-                document.getElementById('fileInput').value = ''; 
-
-            } catch (error) {
-                console.error(error);
-                alert("文件解析失败，请确保文件未加密且格式正确。");
-            }
-        };
-        reader.readAsArrayBuffer(file);
-    });
-
-    // 更新界面状态
-    function updateStatus(fromCache = false) {
-        const statusText = document.getElementById('statusText');
-        const btn1 = document.getElementById('btn1');
-        const btn5 = document.getElementById('btn5');
-        const clearBtn = document.getElementById('clearBtn');
-
-        if (nameList.length > 0) {
-            const sourceInfo = fromCache ? '<span style="color:#0984e3">[已恢复上次存档]</span>' : '<span style="color:#00b894">[新导入]</span>';
-            statusText.innerHTML = `✅ 就绪: 共 <strong>${nameList.length}</strong> 人 ${sourceInfo}`;
-            
-            btn1.disabled = false;
-            btn5.disabled = nameList.length < 5;
-            clearBtn.style.display = 'block';
-        } else {
-            statusText.innerText = "等待导入名单...";
-            btn1.disabled = true;
-            btn5.disabled = true;
-            clearBtn.style.display = 'none';
-        }
-    }
-
-    // 清除数据
-    function clearData() {
-        if(confirm('确定要清除当前的名单存档吗？')) {
-            localStorage.removeItem(STORAGE_KEY);
-            nameList = [];
-            document.getElementById('result-area').innerHTML = '';
-            updateStatus();
-        }
-    }
-
-    // --- 抽奖逻辑 (与之前相同) ---
-    function startLottery(count) {
-        if (isDrawing) return; 
-        if (nameList.length < count) return alert("名单人数不足！");
-
-        isDrawing = true;
-        setButtonsState(true); 
-
-        const resultArea = document.getElementById('result-area');
-        resultArea.innerHTML = '';
-
-        let tempPool = [...nameList];
-        for (let i = tempPool.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [tempPool[i], tempPool[j]] = [tempPool[j], tempPool[i]];
-        }
-        const winners = tempPool.slice(0, count);
-
-        const cardElements = [];
-        for (let i = 0; i < count; i++) {
-            const card = document.createElement('div');
-            card.className = 'result-card rolling';
-            if (count === 1) card.classList.add('single-mode'); 
-            card.innerText = '...';
-            resultArea.appendChild(card);
-            cardElements.push(card);
-        }
-
-        cardElements.forEach((card, index) => {
-            let rollInterval = setInterval(() => {
-                const randomName = nameList[Math.floor(Math.random() * nameList.length)];
-                card.innerText = randomName;
-            }, 50);
-
-            // 抽1人2秒停，抽5人交错停
-            const stopDelay = count === 1 ? 2000 : 1500 + (index * 400);
-
-            setTimeout(() => {
-                clearInterval(rollInterval);
-                card.innerText = winners[index]; 
-                card.classList.remove('rolling');
-                card.classList.add('winner-pop'); 
-                
-                if (index === count - 1) {
-                    isDrawing = false;
-                    setButtonsState(false);
-                    triggerConfetti(); 
-                }
-            }, stopDelay);
-        });
-    }
-
-    function setButtonsState(disabled) {
-        document.getElementById('btn1').disabled = disabled;
-        document.getElementById('btn5').disabled = disabled || nameList.length < 5;
-        document.getElementById('clearBtn').disabled = disabled;
-    }
-
-    function triggerConfetti() {
-        const duration = 2500;
-        const end = Date.now() + duration;
-
-        (function frame() {
-            confetti({
-                particleCount: 5,
-                angle: 60,
-                spread: 55,
-                origin: { x: 0 },
-                colors: ['#0984e3', '#00b894', '#fdcb6e']
-            });
-            confetti({
-                particleCount: 5,
-                angle: 120,
-                spread: 55,
-                origin: { x: 1 },
-                colors: ['#0984e3', '#00b894', '#fdcb6e']
-            });
-
-            if (Date.now() < end) {
-                requestAnimationFrame(frame);
-            }
-        }());
-    }
-</script>
-
-</body>
-</html>
+    // 初始化加载
+    window.onload = function()
