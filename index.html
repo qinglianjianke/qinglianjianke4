@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>随机抽奖系统 (支持Excel)</title>
+    <!-- 引入 SheetJS 库用于解析 Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #eef2f7;
+            border-radius: 8px;
+            border: 1px dashed #ccc;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .custom-file-upload {
+            border: 1px solid #ccc;
+            display: inline-block;
+            padding: 8px 16px;
+            cursor: pointer;
+            background: #27ae60;
+            color: white;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .custom-file-upload:hover {
+            background: #219150;
+        }
+
+        .status {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+            word-break: break-all;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.1s, background-color 0.2s;
+            font-weight: bold;
+            color: white;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .btn-one { background-color: #3498db; }
+        .btn-one:hover { background-color: #2980b9; }
+
+        .btn-five { background-color: #e74c3c; }
+        .btn-five:hover { background-color: #c0392b; }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        #result-area {
+            margin-top: 20px;
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .result-card {
+            background: #fff8e1;
+            border: 2px solid #ffecb3;
+            color: #d35400;
+            padding: 15px 30px;
+            border-radius: 8px;
+            margin: 5px;
+            font-size: 24px;
+            font-weight: bold;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            width: 80%;
+        }
+
+        .result-title {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        @keyframes popIn {
+            from { opacity: 0; transform: scale(0.5); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📊 Excel 随机抽奖系统</h1>
+
+    <!-- 文件上传区域 -->
+    <div class="input-group">
+        <label for="fileInput" class="custom-file-upload">
+            📂 上传 Excel 名单 (.xlsx)
+        </label>
+        <input type="file" id="fileInput" accept=".xlsx, .xls">
+        <div class="status" id="statusText">等待上传文件...</div>
+    </div>
+
+    <!-- 按钮区域 -->
+    <div class="btn-group">
+        <button onclick="draw(1)" class="btn-one" id="btn1" disabled>抽取 1 人</button>
+        <button onclick="draw(5)" class="btn-five" id="btn5" disabled>抽取 5 人</button>
+    </div>
+
+    <!-- 结果显示区域 -->
+    <div id="result-area"></div>
+</div>
+
+<script>
+    let nameList = [];
+
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+            const data = new Uint8Array(e.target.result);
+            try {
+                // 使用 SheetJS 读取工作簿
+                const workbook = XLSX.read(data, {type: 'array'});
+                
+                // 获取第一个工作表的名字
+                const firstSheetName = workbook.SheetNames[0];
+                
+                // 获取对应的工作表
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // 将工作表转换为JSON数组 (header:1 表示生成二维数组)
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+
+                // 处理数据：扁平化数组，去除空值，转为字符串并去除首尾空格
+                nameList = jsonData.flat()
+                                   .map(item => item ? String(item).trim() : "")
+                                   .filter(item => item !== "" && item !== "姓名" && item !== "名单"); 
+                                   // 这里的 filter 额外过滤了可能存在的表头，如"姓名"
+
+                updateStatus();
+                
+            } catch (error) {
+                console.error(error);
+                const statusText = document.getElementById('statusText');
+                statusText.innerText = "❌ 解析 Excel 失败，请确保文件未损坏";
+                statusText.style.color = 'red';
+            }
+        };
+
+        // 读取为数组缓冲区
+        reader.readAsArrayBuffer(file);
+    });
+
+    function updateStatus() {
+        const statusText = document.getElementById('statusText');
+        const btn1 = document.getElementById('btn1');
+        const btn5 = document.getElementById('btn5');
+
+        if (nameList.length > 0) {
+            statusText.innerHTML = `✅ 已加载 <strong>${nameList.length}</strong> 个名字`;
+            statusText.style.color = 'green';
+            btn1.disabled = false;
+            btn5.disabled = nameList.length < 5;
+        } else {
+            statusText.innerText = "⚠️ Excel 中未找到有效数据";
+            statusText.style.color = 'red';
+            btn1.disabled = true;
+            btn5.disabled = true;
+        }
+    }
+
+    function draw(count) {
+        const resultArea = document.getElementById('result-area');
+        resultArea.innerHTML = ''; 
+
+        if (nameList.length < count) {
+            alert(`名单人数不足 ${count} 人，无法抽取！`);
+            return;
+        }
+
+        // 复制并打乱
+        let tempPool = [...nameList];
+        for (let i = tempPool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [tempPool[i], tempPool[j]] = [tempPool[j], tempPool[i]];
+        }
+
+        const winners = tempPool.slice(0, count);
+
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'result-title';
+        titleDiv.innerText = count === 1 ? '✨ 幸运儿' : '✨ 幸运名单';
+        resultArea.appendChild(titleDiv);
+
+        winners.forEach((winner, index) => {
+            setTimeout(() => {
+                const card = document.createElement('div');
+                card.className = 'result-card';
+                card.innerText = winner;
+                resultArea.appendChild(card);
+            }, index * 100);
+        });
+    }
+</script>
+
+</body>
+</html>
